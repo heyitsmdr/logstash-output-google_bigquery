@@ -198,14 +198,14 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
     # Message must be written as json
     encoded_message = LogStash::Json.dump message
 
-    @batcher.enqueue(encoded_message) { |batch| publish(batch) }
+    @batcher.enqueue(encoded_message, event) { |batch| publish(batch) }
   end
 
-  def get_table_name(time=nil)
+  def get_table_name(time=nil, event)
     time ||= Time.now
 
     str_time = time.strftime(@date_pattern)
-    table_id = @table_prefix + @table_separator + str_time
+    table_id = event.sprintf(@table_prefix) + @table_separator + str_time
 
     # BQ does not accept anything other than alphanumeric and _
     # Ref: https://developers.google.com/bigquery/browser-tool-quickstart?hl=en
@@ -233,13 +233,22 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
     begin
       return if messages.nil? || messages.empty?
 
-      table = get_table_name
-      @logger.info("Publishing #{messages.length} messages to #{table}")
+      append_queue = {}
+      messages.each do |msg|
+        table_name = get_table_name(nil, msg.event)
+        unless append_queue.has_key?(table_name)
+          create_table_if_not_exists table_name
+          append_queue[table_name] = []
+        end
+        append_queue[table_name] << msg.message
+      end
 
-      create_table_if_not_exists table
+      append_queue.each do |table, msgs|
+        @logger.info("Publishing #{msgs.length} messages to #{table}")
 
-      failed_rows = @bq_client.append(@dataset, table, messages, @ignore_unknown_values, @skip_invalid_rows)
-      write_to_errors_file(failed_rows, table) unless failed_rows.empty?
+        failed_rows = @bq_client.append(@dataset, table, msgs, @ignore_unknown_values, @skip_invalid_rows)
+        write_to_errors_file(failed_rows, table) unless failed_rows.empty?
+      end
     rescue StandardError => e
       @logger.error 'Error uploading data.', :exception => e
 

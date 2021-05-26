@@ -32,7 +32,7 @@ module LogStash
         # out the internal state is reset and the array of messages is both
         # yielded and returned.
         # Otherwise nil is returned.
-        def enqueue(message)
+        def enqueue(message, event)
           @lock.write_lock.lock
 
           orig = nil
@@ -41,7 +41,7 @@ module LogStash
 
             unless is_flush_request
               @batch_size_bytes += message.length
-              @batch << message
+              @batch << { "message" => message, "event" => event }
             end
 
             length_met = @batch.length >= @max_length
