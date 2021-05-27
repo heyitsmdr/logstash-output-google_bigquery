@@ -286,7 +286,7 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
       until stopping?
         Stud.stoppable_sleep(@flush_interval_secs) { stopping? }
 
-        @batcher.enqueue(nil) { |batch| publish(batch) }
+        @batcher.enqueue(nil, nil) { |batch| publish(batch) }
       end
     end
   end
@@ -301,6 +301,6 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
     @flush_thread.join
     # Final flush to publish any events published if a pipeline receives a shutdown signal after flush thread
     # has begun flushing.
-    @batcher.enqueue(nil) { |batch| publish(batch) }
+    @batcher.enqueue(nil, nil) { |batch| publish(batch) }
   end
 end

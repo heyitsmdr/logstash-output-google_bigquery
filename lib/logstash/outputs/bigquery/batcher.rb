@@ -22,8 +22,8 @@ module LogStash
 
         # enqueue_push calls enqueue and if a batch is ready to go pushes it to
         # the provided queue.
-        def enqueue_push(message, queue)
-          batch = enqueue message
+        def enqueue_push(message, event, queue)
+          batch = enqueue message, event
 
           queue << batch unless batch.nil?
         end
