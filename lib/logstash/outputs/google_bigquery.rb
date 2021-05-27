@@ -235,12 +235,12 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
 
       append_queue = {}
       messages.each do |msg|
-        table_name = get_table_name(nil, msg.event)
+        table_name = get_table_name(nil, msg["event"])
         unless append_queue.has_key?(table_name)
           create_table_if_not_exists table_name
           append_queue[table_name] = []
         end
-        append_queue[table_name] << msg.message
+        append_queue[table_name] << msg["message"]
       end
 
       append_queue.each do |table, msgs|
@@ -251,8 +251,6 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
       end
     rescue StandardError => e
       @logger.error 'Error uploading data.', :exception => e
-
-      write_to_errors_file(messages, table)
     end
   end
 
