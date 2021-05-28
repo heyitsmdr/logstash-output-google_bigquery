@@ -183,6 +183,7 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
     @bq_client = LogStash::Outputs::BigQuery::StreamingClient.new @json_key_file, @project_id, @logger
     @batcher = LogStash::Outputs::BigQuery::Batcher.new @batch_size, @batch_size_bytes
     @stopping = Concurrent::AtomicBoolean.new(false)
+    @table_cache = []
 
     init_batcher_flush_thread
   end
@@ -237,7 +238,10 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
       messages.each do |msg|
         table_name = get_table_name(nil, msg["event"])
         unless append_queue.has_key?(table_name)
-          create_table_if_not_exists table_name
+          unless @table_cache.include? table_name
+            create_table_if_not_exists table_name
+            @table_cache << table_name
+          end
           append_queue[table_name] = []
         end
         append_queue[table_name] << msg["message"]
@@ -251,6 +255,7 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
       end
     rescue StandardError => e
       @logger.error 'Error uploading data.', :exception => e
+      @table_cache = []
     end
   end
 
@@ -260,7 +265,7 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
       @bq_client.create_table(@dataset, table, @schema)
 
     rescue StandardError => e
-      @logger.error 'Error creating table.', :exception => e
+      @logger.error "Error creating #{table} table", :exception => e
     end
   end
 
