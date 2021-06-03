@@ -234,6 +234,8 @@ class LogStash::Outputs::GoogleBigQuery < LogStash::Outputs::Base
     begin
       return if messages.nil? || messages.empty?
 
+      @logger.info("Processing batch of #{messages.length} messages")
+
       append_queue = {}
       messages.each do |msg|
         table_name = get_table_name(nil, msg["event"])
